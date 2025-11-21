@@ -1,8 +1,8 @@
 type: framework
 content:
   - Upload the data
-  - Merge them
+  - Merge them!
   - Improve your dataset
   - The statistics
   - Visualize it
-current_task: 0
+current_task: 2

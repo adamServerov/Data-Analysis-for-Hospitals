@@ -1,79 +1,56 @@
+import re
+
 from hstest.stage_test import StageTest
 from hstest.test_case import TestCase
 from hstest.check_result import CheckResult
 
-gen_answers = '''    Unnamed: 0 hospital gender  age  ...  mri  xray  children months
-0            0  general    man   33  ...  NaN   NaN       NaN    NaN
-1            1  general    man   48  ...  NaN   NaN       NaN    NaN
-2            2  general  woman   23  ...  NaN   NaN       NaN    NaN
-3            3  general    man   27  ...  NaN   NaN       NaN    NaN
-4            4  general  woman   22  ...  NaN     f       NaN    NaN
-5            5  general    man   46  ...  NaN   NaN       NaN    NaN
-6            6  general  woman   68  ...  NaN   NaN       NaN    NaN
-7            7  general    man   35  ...  NaN   NaN       NaN    NaN
-8            8  general  woman   50  ...  NaN     f       NaN    NaN
-9            9  general    man   25  ...  NaN   NaN       NaN    NaN
-10          10  general    man   27  ...  NaN   NaN       NaN    NaN
-11          11  general    man   57  ...  NaN   NaN       NaN    NaN
-12          12  general    man   29  ...  NaN     f       NaN    NaN
-13          13  general  woman   18  ...  NaN   NaN       NaN    NaN
-14          14  general  woman   47  ...  NaN   NaN       NaN    NaN
-15          15  general  woman   51  ...  NaN   NaN       NaN    NaN
-16          16  general  woman   56  ...  NaN     t       NaN    NaN
-17          17  general  woman   38  ...  NaN   NaN       NaN    NaN
-18          18  general  woman   32  ...  NaN   NaN       NaN    NaN
-19          19  general  woman   69  ...  NaN     f       NaN    NaN
+df_result_float_zero = '''     hospital gender   age  height  ...  mri  xray children months
+929    sports      f  23.0   6.809  ...    t     f      0.0    0.0
+927    sports      m  21.0   6.052  ...    t     f      0.0    0.0
+516  prenatal      f  20.0   1.650  ...    0     f      1.0    4.0
+87    general      m  54.0   1.720  ...    0     0      0.0    0.0
+885    sports      f  16.0   5.915  ...    t     f      0.0    0.0
+463  prenatal      f  34.0   1.650  ...    0     f      1.0    5.0
+112   general      m  77.0   1.690  ...    0     0      0.0    0.0
+297   general      m  56.0   1.480  ...    0     0      0.0    0.0
+417   general      f  26.0   1.650  ...    0     0      0.0    0.0
+660  prenatal      f  38.0   1.590  ...    0     f      1.0    4.0
+344   general      f  60.0   1.410  ...    0     0      0.0    0.0
+834    sports      f  21.0   5.585  ...    f     t      0.0    0.0
+10    general      m  27.0   1.850  ...    0     0      0.0    0.0
+56    general      m  23.0   1.650  ...    0     0      0.0    0.0
+616  prenatal      f  33.0   1.770  ...    0     f      1.0    7.0
+479  prenatal      f  35.0   1.810  ...    0     f      1.0    8.0
+578  prenatal      f  31.0   1.770  ...    0     f      1.0    8.0
+411   general      m  26.0   1.610  ...    0     0      0.0    0.0
+521  prenatal      f  30.0   1.740  ...    0     f      1.0    3.0
+941    sports      f  25.0   6.208  ...    f     t      0.0    0.0
 
-[20 rows x 15 columns]'''
+[20 rows x 14 columns]'''
 
-pren_answers = '''    Unnamed: 0  HOSPITAL  Sex   age  ...  mri  xray  children months
-0            0  prenatal  NaN  27.0  ...  NaN     f       0.0    3.0
-1            1  prenatal  NaN  18.0  ...  NaN     f       1.0    5.0
-2            2  prenatal  NaN  34.0  ...  NaN     f       1.0    5.0
-3            3  prenatal  NaN  29.0  ...  NaN     f       2.0    3.0
-4            4  prenatal  NaN  33.0  ...  NaN     f       1.0    7.0
-5            5  prenatal  NaN  31.0  ...  NaN     f       0.0    3.0
-6            6  prenatal  NaN  30.0  ...  NaN     f       0.0    5.0
-7            7  prenatal  NaN  19.0  ...  NaN     f       1.0    6.0
-8            8  prenatal  NaN  44.0  ...  NaN     f       2.0    6.0
-9            9  prenatal  NaN  35.0  ...  NaN     f       0.0    6.0
-10          10  prenatal  NaN  41.0  ...  NaN     f       2.0    7.0
-11          11  prenatal  NaN  26.0  ...  NaN     f       0.0    7.0
-12          12  prenatal  NaN  25.0  ...  NaN     f       1.0    5.0
-13          13  prenatal  NaN  41.0  ...  NaN     f       2.0    8.0
-14          14  prenatal  NaN  27.0  ...  NaN     f       0.0    6.0
-15          15  prenatal  NaN  26.0  ...  NaN     f       2.0    2.0
-16          16  prenatal  NaN  16.0  ...  NaN     f       1.0    4.0
-17          17  prenatal  NaN  33.0  ...  NaN     f       1.0    9.0
-18          18  prenatal  NaN  35.0  ...  NaN     f       1.0    8.0
-19          19  prenatal  NaN  30.0  ...  NaN     f       2.0    9.0
+df_result_int_zero = '''     hospital gender   age  height  ...  mri  xray children months
+929    sports      f  23.0   6.809  ...    t     f        0      0
+927    sports      m  21.0   6.052  ...    t     f        0      0
+516  prenatal      f  20.0   1.650  ...    0     f      1.0    4.0
+87    general      m  54.0   1.720  ...    0     0        0      0
+885    sports      f  16.0   5.915  ...    t     f        0      0
+463  prenatal      f  34.0   1.650  ...    0     f      1.0    5.0
+112   general      m  77.0   1.690  ...    0     0        0      0
+297   general      m  56.0   1.480  ...    0     0        0      0
+417   general      f  26.0   1.650  ...    0     0        0      0
+660  prenatal      f  38.0   1.590  ...    0     f      1.0    4.0
+344   general      f  60.0   1.410  ...    0     0        0      0
+834    sports      f  21.0   5.585  ...    f     t        0      0
+10    general      m  27.0   1.850  ...    0     0        0      0
+56    general      m  23.0   1.650  ...    0     0        0      0
+616  prenatal      f  33.0   1.770  ...    0     f      1.0    7.0
+479  prenatal      f  35.0   1.810  ...    0     f      1.0    8.0
+578  prenatal      f  31.0   1.770  ...    0     f      1.0    8.0
+411   general      m  26.0   1.610  ...    0     0        0      0
+521  prenatal      f  30.0   1.740  ...    0     f      1.0    3.0
+941    sports      f  25.0   6.208  ...    f     t        0      0
 
-[20 rows x 15 columns]'''
-
-sports_answers = '''    Unnamed: 0 Hospital Male/female   age  ...  mri  xray  children months
-0            0   sports      female  20.0  ...    t     f       NaN    NaN
-1            1   sports      female  20.0  ...    f     t       NaN    NaN
-2            2   sports        male  16.0  ...    f     t       NaN    NaN
-3            3   sports        male  17.0  ...    t     f       NaN    NaN
-4            4   sports        male  19.0  ...    f     t       NaN    NaN
-5            5      NaN         NaN   NaN  ...  NaN   NaN       NaN    NaN
-6            6   sports      female  14.0  ...    t     f       NaN    NaN
-7            7   sports      female  22.0  ...    t     f       NaN    NaN
-8            8   sports      female  21.0  ...    f     t       NaN    NaN
-9            9   sports      female  18.0  ...    t     f       NaN    NaN
-10          10   sports        male  12.0  ...    f     t       NaN    NaN
-11          11   sports        male  15.0  ...    f     t       NaN    NaN
-12          12   sports      female  22.0  ...    f     f       NaN    NaN
-13          13   sports      female  19.0  ...    f     t       NaN    NaN
-14          14   sports      female  16.0  ...    f     t       NaN    NaN
-15          15   sports      female  19.0  ...    f     t       NaN    NaN
-16          16   sports        male  18.0  ...    f     t       NaN    NaN
-17          17   sports      female  18.0  ...    t     f       NaN    NaN
-18          18   sports        male  19.0  ...    f     t       NaN    NaN
-19          19   sports      female  17.0  ...    t     f       NaN    NaN
-
-[20 rows x 15 columns]
-'''
+[20 rows x 14 columns]'''
 
 
 class EDATest(StageTest):
@@ -82,22 +59,33 @@ class EDATest(StageTest):
 
     def check(self, reply, attach):
         lines = reply.split('\n')
-        lines_with_digit = [i for i in lines if len(i) > 0 and i[0].isdigit()]
-        if len(lines_with_digit) != 60:
-            return CheckResult.wrong(
-                'There should be 60 lines of data, found ' + str(len(lines_with_digit)))
+        if len(lines) < 24:
+            return CheckResult.wrong(feedback="There is not enough lines in the answer, check the example output at the stage 3")
 
-        if gen_answers not in reply:
-            return CheckResult.wrong(
-                "Seems like you didn't print first 20 rows of general.csv")
+        # check random 20 rows printing
+        lines_with_digit_first = [i for i in lines if len(i) > 0 and i[0].isdigit()]
+        columns = lines[1]
+        if 'Unnamed: 0' in columns:
+            return CheckResult.wrong(feedback='Holy-moly! you\'ve printed \'Unnamed: 0\' column')
+        if len(lines_with_digit_first) != 20:
+            return CheckResult.wrong(feedback='There should be 20 lines of data, found ' + str(len(lines_with_digit_first)))
 
-        if pren_answers not in reply:
-            return CheckResult.wrong(
-                "Seems like you didn't print first 20 rows of prenatal.csv")
+        row_indexes_in_reply = [int(re.findall(r'\d+', x.split(' ')[0])[0]) for x in lines_with_digit_first]
+        right_row_indexes = [929, 927, 516, 87, 885, 463, 112, 297, 417, 660, 344, 834, 10, 56, 616, 479, 578, 411, 521, 941]
+        if set(row_indexes_in_reply) != set(right_row_indexes):
+            return CheckResult.wrong(feedback=f"You've printed a wrong sample of data\nFound indexes: {row_indexes_in_reply},\nExpected indexes: {right_row_indexes}\n"
+                                              f"Make sure that you set random_state=30 and completed all the steps in the Objectives section including deleting empty rows")
+        if df_result_float_zero not in reply and df_result_int_zero not in reply:
+            return CheckResult.wrong(feedback="Seems like your answer is incorrect. Make sure that you completed all the steps in the Objectives section")
 
-        if sports_answers not in reply:
-            return CheckResult.wrong(
-                "Seems like you didn't print first 20 rows of sports.csv")
+        # check data shape reply
+        data_shape_reply = list(map(float, re.findall(r'\d*\.\d+|\d+', lines[0])))
+        if len(data_shape_reply) != 2:
+            return CheckResult.wrong(feedback="The shape of the data should consist of 2 numbers")
+        if data_shape_reply[0] != 1000:
+            return CheckResult.wrong(feedback=f"{data_shape_reply[0]} is a wrong number of rows in the data frame. Make sure that you deleted empty rows and completed all the steps in the Objectives section")
+        if data_shape_reply[1] != 14:
+            return CheckResult.wrong(feedback=f"{data_shape_reply[1]} is a wrong number of columns in the data frame. Make sure that you completed all the steps in the Objectives section")
 
         return CheckResult.correct()
 
