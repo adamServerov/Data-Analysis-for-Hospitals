@@ -4,7 +4,7 @@ hyperskill_project:
   is_template_based: false
   use_ide: true
   environment: unittest
-update_date: "Fri, 21 Nov 2025 04:15:23 UTC"
+update_date: "Fri, 21 Nov 2025 16:37:04 UTC"
 stages:
   - id: 801
     step: 12046
@@ -17,10 +17,10 @@ stages:
     is_completed: true
   - id: 804
     step: 12049
-    is_completed: false
+    is_completed: true
   - id: 805
     step: 12050
-    is_completed: false
+    is_completed: true
 topics:
   0:
     - title: Numerical and categorical data

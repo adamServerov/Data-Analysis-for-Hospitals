@@ -1,91 +1,67 @@
 import re
-
 from hstest.stage_test import StageTest
 from hstest.test_case import TestCase
 from hstest.check_result import CheckResult
 
-df_result_float_zero = '''     hospital gender   age  height  ...  mri  xray children months
-929    sports      f  23.0   6.809  ...    t     f      0.0    0.0
-927    sports      m  21.0   6.052  ...    t     f      0.0    0.0
-516  prenatal      f  20.0   1.650  ...    0     f      1.0    4.0
-87    general      m  54.0   1.720  ...    0     0      0.0    0.0
-885    sports      f  16.0   5.915  ...    t     f      0.0    0.0
-463  prenatal      f  34.0   1.650  ...    0     f      1.0    5.0
-112   general      m  77.0   1.690  ...    0     0      0.0    0.0
-297   general      m  56.0   1.480  ...    0     0      0.0    0.0
-417   general      f  26.0   1.650  ...    0     0      0.0    0.0
-660  prenatal      f  38.0   1.590  ...    0     f      1.0    4.0
-344   general      f  60.0   1.410  ...    0     0      0.0    0.0
-834    sports      f  21.0   5.585  ...    f     t      0.0    0.0
-10    general      m  27.0   1.850  ...    0     0      0.0    0.0
-56    general      m  23.0   1.650  ...    0     0      0.0    0.0
-616  prenatal      f  33.0   1.770  ...    0     f      1.0    7.0
-479  prenatal      f  35.0   1.810  ...    0     f      1.0    8.0
-578  prenatal      f  31.0   1.770  ...    0     f      1.0    8.0
-411   general      m  26.0   1.610  ...    0     0      0.0    0.0
-521  prenatal      f  30.0   1.740  ...    0     f      1.0    3.0
-941    sports      f  25.0   6.208  ...    f     t      0.0    0.0
-
-[20 rows x 14 columns]'''
-
-df_result_int_zero = '''     hospital gender   age  height  ...  mri  xray children months
-929    sports      f  23.0   6.809  ...    t     f        0      0
-927    sports      m  21.0   6.052  ...    t     f        0      0
-516  prenatal      f  20.0   1.650  ...    0     f      1.0    4.0
-87    general      m  54.0   1.720  ...    0     0        0      0
-885    sports      f  16.0   5.915  ...    t     f        0      0
-463  prenatal      f  34.0   1.650  ...    0     f      1.0    5.0
-112   general      m  77.0   1.690  ...    0     0        0      0
-297   general      m  56.0   1.480  ...    0     0        0      0
-417   general      f  26.0   1.650  ...    0     0        0      0
-660  prenatal      f  38.0   1.590  ...    0     f      1.0    4.0
-344   general      f  60.0   1.410  ...    0     0        0      0
-834    sports      f  21.0   5.585  ...    f     t        0      0
-10    general      m  27.0   1.850  ...    0     0        0      0
-56    general      m  23.0   1.650  ...    0     0        0      0
-616  prenatal      f  33.0   1.770  ...    0     f      1.0    7.0
-479  prenatal      f  35.0   1.810  ...    0     f      1.0    8.0
-578  prenatal      f  31.0   1.770  ...    0     f      1.0    8.0
-411   general      m  26.0   1.610  ...    0     0        0      0
-521  prenatal      f  30.0   1.740  ...    0     f      1.0    3.0
-941    sports      f  25.0   6.208  ...    f     t        0      0
-
-[20 rows x 14 columns]'''
-
 
 class EDATest(StageTest):
+    def __init__(self, method: str):
+        super().__init__(method)
+
+        self.figures = []
+
+        import matplotlib
+        import matplotlib.pyplot as plt
+        from matplotlib._pylab_helpers import Gcf
+        matplotlib.use("agg")
+
+        def custom_show_func(*args, **kwargs):
+            managers = Gcf.get_all_fig_managers()
+            for m in managers:
+                self.figures.append(m.canvas.figure)
+                Gcf.destroy(m.num)
+
+        plt.show = custom_show_func
+
     def generate(self):
-        return [TestCase()]
+        return [
+            TestCase()
+        ]
 
     def check(self, reply, attach):
-        lines = reply.split('\n')
-        if len(lines) < 24:
-            return CheckResult.wrong(feedback="There is not enough lines in the answer, check the example output at the stage 3")
+        if len(self.figures) == 0:
+            return CheckResult.wrong(
+                'Looks like you didn\'t present plots using "plt.show()" command')
 
-        # check random 20 rows printing
-        lines_with_digit_first = [i for i in lines if len(i) > 0 and i[0].isdigit()]
-        columns = lines[1]
-        if 'Unnamed: 0' in columns:
-            return CheckResult.wrong(feedback='Holy-moly! you\'ve printed \'Unnamed: 0\' column')
-        if len(lines_with_digit_first) != 20:
-            return CheckResult.wrong(feedback='There should be 20 lines of data, found ' + str(len(lines_with_digit_first)))
+        if len(self.figures) != 3:
+            return CheckResult.wrong(
+                'Looks like you didn\'t build all three plots using "plt.show()" command')
 
-        row_indexes_in_reply = [int(re.findall(r'\d+', x.split(' ')[0])[0]) for x in lines_with_digit_first]
-        right_row_indexes = [929, 927, 516, 87, 885, 463, 112, 297, 417, 660, 344, 834, 10, 56, 616, 479, 578, 411, 521, 941]
-        if set(row_indexes_in_reply) != set(right_row_indexes):
-            return CheckResult.wrong(feedback=f"You've printed a wrong sample of data\nFound indexes: {row_indexes_in_reply},\nExpected indexes: {right_row_indexes}\n"
-                                              f"Make sure that you set random_state=30 and completed all the steps in the Objectives section including deleting empty rows")
-        if df_result_float_zero not in reply and df_result_int_zero not in reply:
-            return CheckResult.wrong(feedback="Seems like your answer is incorrect. Make sure that you completed all the steps in the Objectives section")
+        lines = [line for line in reply.split('\n') if len(line) > 0]
+        if len(lines) != 3:
+            return CheckResult.wrong(
+                'You should output exactly 3 lines with answer to each question in each line. '
+                f'Found {len(lines)} lines')
 
-        # check data shape reply
-        data_shape_reply = list(map(float, re.findall(r'\d*\.\d+|\d+', lines[0])))
-        if len(data_shape_reply) != 2:
-            return CheckResult.wrong(feedback="The shape of the data should consist of 2 numbers")
-        if data_shape_reply[0] != 1000:
-            return CheckResult.wrong(feedback=f"{data_shape_reply[0]} is a wrong number of rows in the data frame. Make sure that you deleted empty rows and completed all the steps in the Objectives section")
-        if data_shape_reply[1] != 14:
-            return CheckResult.wrong(feedback=f"{data_shape_reply[1]} is a wrong number of columns in the data frame. Make sure that you completed all the steps in the Objectives section")
+        if 'answer' not in lines[0].lower() or 'question:' not in lines[0].lower()\
+                or 'answer' not in lines[1].lower() or 'question:' not in lines[1].lower():
+            return CheckResult.wrong(
+                'Please follow the format of the answers given in the Example section')
+
+        # 1st question
+        answer_reply_str = lines[0].split('question:')[1]
+        answer_reply_nums = re.findall(r'\d*\.\d+|\d+', answer_reply_str)
+        if len(answer_reply_nums) != 2:
+            return CheckResult.wrong(
+                'The answer to 1st question is incorrect. You should choose one of the age ranges given in the question')
+        answer_reply_nums = list(map(float, answer_reply_nums))
+        if len(set([15, 35]) & set(answer_reply_nums)) != 2:
+            return CheckResult.wrong(
+                'The answer to the 1st question is incorrect')
+        # 2nd question
+        answer_reply_str = lines[1].split('question:')[1].replace(" ", "")
+        if answer_reply_str != 'pregnancy':
+            return CheckResult.wrong(f'Found "{answer_reply_str}", which is incorrect answer to the 2nd question')
 
         return CheckResult.correct()
 
